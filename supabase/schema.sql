@@ -79,23 +79,42 @@ create table payments (
 );
 create index payments_student on payments (student_id, paid_on);
 
--- Каждый видит только свои данные
+-- Администраторы видят и меняют данные всех пользователей.
+-- Назначить: insert into app_admins (user_id) select id from auth.users where email = 'почта@example.com';
+create table app_admins (
+  user_id uuid primary key references auth.users on delete cascade
+);
+
+create or replace function is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from app_admins where user_id = auth.uid());
+$$;
+grant execute on function is_admin() to authenticated;
+
+-- Каждый видит только свои данные, администратор — все
+alter table app_admins enable row level security;
 alter table students enable row level security;
 alter table parents enable row level security;
 alter table recurring_slots enable row level security;
 alter table lessons enable row level security;
 alter table payments enable row level security;
 
+create policy read_self on app_admins for select using (user_id = auth.uid());
 create policy own on students for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid() or is_admin()) with check (owner_id = auth.uid() or is_admin());
 create policy own on parents for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid() or is_admin()) with check (owner_id = auth.uid() or is_admin());
 create policy own on recurring_slots for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid() or is_admin()) with check (owner_id = auth.uid() or is_admin());
 create policy own on lessons for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid() or is_admin()) with check (owner_id = auth.uid() or is_admin());
 create policy own on payments for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid() or is_admin()) with check (owner_id = auth.uid() or is_admin());
 
 -- Страница для родителей: по секретной ссылке отдаёт только то, что можно показать.
 create or replace function parent_view(token text)
