@@ -1,7 +1,32 @@
 // Даты храним строками YYYY-MM-DD и считаем в UTC, чтобы не зависеть от часового пояса сервера.
 
 export const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-export const WEEKDAYS_FULL = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+/** «Каждый …» в правильном роде: каждую среду, каждое воскресенье */
+export const EVERY_WEEKDAY = [
+  'каждый понедельник',
+  'каждый вторник',
+  'каждую среду',
+  'каждый четверг',
+  'каждую пятницу',
+  'каждую субботу',
+  'каждое воскресенье',
+];
+
+export function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** plural(5, ['урок', 'урока', 'уроков']) → «уроков» */
+export function plural(n: number, forms: [string, string, string]): string {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return forms[2];
+  if (b === 1) return forms[0];
+  if (b >= 2 && b <= 4) return forms[1];
+  return forms[2];
+}
+
+export const LESSON_FORMS: [string, string, string] = ['урок', 'урока', 'уроков'];
 
 const TZ = process.env.TEACHER_TZ || 'Europe/Moscow';
 
@@ -55,7 +80,8 @@ export function humanDate(s: string): string {
 }
 
 export function humanMonth(month: string): string {
-  return new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(parse(month + '-01'));
+  const name = new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', month: 'long' }).format(parse(month + '-01'));
+  return `${capitalize(name)} ${month.slice(0, 4)}`;
 }
 
 export function hhmm(t: string): string {

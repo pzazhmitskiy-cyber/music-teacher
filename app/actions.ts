@@ -138,6 +138,14 @@ async function setArchived_(fd: FormData) {
   back(fd, `/students/${id}`);
 }
 
+async function deleteStudent_(fd: FormData) {
+  const sb = await supabase();
+  // Удалить можно только ученика из архива: уроки, оплаты и родители удаляются вместе с ним
+  await check(sb.from('students').delete().eq('id', str(fd, 'id')!).eq('archived', true));
+  revalidatePath('/', 'layout');
+  redirect('/students?archived=1');
+}
+
 async function resetShareLink_(fd: FormData) {
   const sb = await supabase();
   const id = str(fd, 'id')!;
@@ -324,6 +332,9 @@ export async function updateStudent(fd: FormData) {
 }
 export async function setArchived(fd: FormData) {
   return guard(fd, setArchived_);
+}
+export async function deleteStudent(fd: FormData) {
+  return guard(fd, deleteStudent_);
 }
 export async function resetShareLink(fd: FormData) {
   return guard(fd, resetShareLink_);

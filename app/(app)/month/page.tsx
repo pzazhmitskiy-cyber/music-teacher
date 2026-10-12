@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { humanMonth, monthRange, rub, shiftMonth, today } from '@/lib/dates';
+import { humanMonth, LESSON_FORMS, monthRange, plural, rub, shiftMonth, today } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
 import { BILLABLE, fullName, KIND_LABEL, type Kind } from '@/lib/types';
 
@@ -34,7 +34,7 @@ export default async function Month({ searchParams }: { searchParams: Promise<{ 
     <>
       <div className="spread">
         <Link href={`/month?m=${shiftMonth(month, -1)}`}>← Пред.</Link>
-        <strong style={{ textTransform: 'capitalize' }}>{humanMonth(month)}</strong>
+        <strong>{humanMonth(month)}</strong>
         <Link href={`/month?m=${shiftMonth(month, 1)}`}>След. →</Link>
       </div>
 
@@ -43,7 +43,7 @@ export default async function Month({ searchParams }: { searchParams: Promise<{ 
           <div key={k} className="card">
             <div className="muted small">{KIND_LABEL[k]}</div>
             <div className="big">{rub(total(byKind(k)))}</div>
-            <div className="muted small">{byKind(k).length} уроков</div>
+            <div className="muted small">{byKind(k).length} {plural(byKind(k).length, LESSON_FORMS)}</div>
           </div>
         ))}
         <div className="card">

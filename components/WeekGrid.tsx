@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { hhmm, nowMinutes, toMinutes, WEEKDAYS } from '@/lib/dates';
+import { hhmm, LESSON_FORMS, nowMinutes, plural, toMinutes, WEEKDAYS } from '@/lib/dates';
 import { fullName, type Kind, type Lesson } from '@/lib/types';
 
 type Row = Lesson & { students: { name: string; last_name: string | null; kind: Kind } | null };
@@ -33,7 +33,7 @@ export function WeekGrid({ days, rows, now, lessonHref, selected }: Props) {
             <div key={d} className={`week-head ${d === now ? 'today' : ''}`}>
               <span className="muted small">{WEEKDAYS[i]}</span>
               <span className="week-day">{Number(d.slice(8))}</span>
-              <span className="muted small">{count ? `${count} ур.` : '—'}</span>
+              <span className="muted small">{count ? `${count} ${plural(count, LESSON_FORMS)}` : '—'}</span>
             </div>
           );
         })}
@@ -51,7 +51,8 @@ export function WeekGrid({ days, rows, now, lessonHref, selected }: Props) {
               .filter((l) => l.lesson_date === d)
               .map((l) => {
                 const top = ((toMinutes(l.start_time) - from * 60) * HOUR) / 60;
-                const h = Math.max(22, (l.duration_min * HOUR) / 60 - 2);
+                // Урок через полночь обрезаем по краю сетки
+                const h = Math.min(height - top, Math.max(22, (l.duration_min * HOUR) / 60 - 2));
                 return (
                   <Link
                     key={l.id}

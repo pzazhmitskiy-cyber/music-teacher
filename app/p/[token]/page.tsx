@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { humanDate, WEEKDAYS_FULL } from '@/lib/dates';
+import { capitalize, EVERY_WEEKDAY, humanDate } from '@/lib/dates';
 
 export const metadata: Metadata = { title: 'Занятия музыкой', robots: { index: false } };
 
@@ -31,7 +31,7 @@ export default async function ParentPage({ params }: { params: Promise<{ token: 
         {v.slots.length === 0 && v.upcoming.length === 0 && <span className="muted">Пока нет занятий в расписании</span>}
         {v.slots.map((s, i) => (
           <span key={i}>
-            Каждый {WEEKDAYS_FULL[s.weekday - 1]} в {s.time}
+            {capitalize(EVERY_WEEKDAY[s.weekday - 1])} в {s.time}
           </span>
         ))}
         {v.upcoming.map((u, i) => (

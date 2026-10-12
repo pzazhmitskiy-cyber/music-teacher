@@ -3,7 +3,7 @@ import { addLesson, markPastDone } from '@/app/actions';
 import { LessonItem } from '@/components/LessonItem';
 import { WeekGrid } from '@/components/WeekGrid';
 import { ensureLessons } from '@/lib/lessons';
-import { addDays, humanDate, isDate, rub, today, weekStart } from '@/lib/dates';
+import { addDays, humanDate, isDate, LESSON_FORMS, plural, rub, today, weekStart } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
 import { fullName, type Kind, type Lesson } from '@/lib/types';
 
@@ -52,7 +52,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
       </div>
       <div className="spread" style={{ marginTop: 8 }}>
         <span className="small muted">
-          {active.length} ур. · {hours.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ч · {rub(income)}
+          {active.length} {plural(active.length, LESSON_FORMS)} · {hours.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ч · {rub(income)}
           {start !== weekStart(now) && (
             <>
               {' · '}

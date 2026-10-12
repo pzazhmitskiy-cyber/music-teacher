@@ -6,6 +6,7 @@ import {
   addPayment,
   addSlot,
   deleteParent,
+  deleteStudent,
   deletePayment,
   endSlot,
   updateSlot,
@@ -14,10 +15,11 @@ import {
   updateParent,
   updateStudent,
 } from '@/app/actions';
+import { ConfirmButton } from '@/components/ConfirmButton';
 import { CopyButton } from '@/components/CopyButton';
 import { LessonItem } from '@/components/LessonItem';
 import { ensureLessons } from '@/lib/lessons';
-import { addDays, hhmm, humanDate, rub, today, WEEKDAYS, WEEKDAYS_FULL } from '@/lib/dates';
+import { addDays, capitalize, EVERY_WEEKDAY, hhmm, humanDate, rub, today, WEEKDAYS } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
 import { BILLABLE, fullName, type Lesson, type Parent, type Payment, type Slot, type Student } from '@/lib/types';
 
@@ -64,9 +66,9 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         <div className="spread">
           <div>
             <div className="muted small">Баланс</div>
-            <div className={`big ${balance < 0 ? 'error' : 'ok'}`}>{rub(balance)}</div>
+            <div className={`big ${balance < 0 ? 'error' : balance > 0 ? 'ok' : ''}`}>{rub(balance)}</div>
             <div className="muted small">
-              {balance < 0 ? 'Долг за проведённые уроки' : 'Предоплата'} · оплачено {rub(paid)}, уроков на {rub(owed)}
+              {balance < 0 ? 'Долг за проведённые уроки' : balance > 0 ? 'Предоплата' : 'Долга нет'} · оплачено {rub(paid)}, уроков на {rub(owed)}
             </div>
           </div>
         </div>
@@ -80,7 +82,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <input type="hidden" name="id" value={slot.id} />
               <input type="hidden" name="back" value={back} />
               <span>
-                Каждый {WEEKDAYS_FULL[slot.weekday - 1]}, {hhmm(slot.start_time)} · {slot.duration_min} мин
+                {capitalize(EVERY_WEEKDAY[slot.weekday - 1])}, {hhmm(slot.start_time)} · {slot.duration_min} мин
                 {slot.starts_on > now && <span className="muted small"> с {humanDate(slot.starts_on)}</span>}
               </span>
               <button className="small ghost">Убрать</button>
@@ -326,14 +328,28 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         ))}
       </section>
 
-      <form action={setArchived} style={{ marginTop: 24 }}>
-        <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="archived" value={s.archived ? 'false' : 'true'} />
-        <input type="hidden" name="back" value={back} />
-        <button className={s.archived ? 'secondary' : 'danger'}>
-          {s.archived ? 'Вернуть из архива' : 'Перенести в архив'}
-        </button>
-      </form>
+      <div className="row" style={{ marginTop: 24 }}>
+        <form action={setArchived}>
+          <input type="hidden" name="id" value={id} />
+          <input type="hidden" name="archived" value={s.archived ? 'false' : 'true'} />
+          <input type="hidden" name="back" value={back} />
+          <button className={s.archived ? 'secondary' : 'danger'}>
+            {s.archived ? 'Вернуть из архива' : 'Перенести в архив'}
+          </button>
+        </form>
+        {s.archived && (
+          <form action={deleteStudent}>
+            <input type="hidden" name="id" value={id} />
+            <input type="hidden" name="back" value={back} />
+            <ConfirmButton
+              className="danger"
+              message={`Удалить ${fullName(s)} навсегда? Удалятся все уроки, оплаты и родители. Отменить нельзя.`}
+            >
+              Удалить навсегда
+            </ConfirmButton>
+          </form>
+        )}
+      </div>
     </>
   );
 }
