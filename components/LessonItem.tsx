@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import { deleteLesson, setLessonStatus, updateLesson } from '@/app/actions';
 import { hhmm, humanDate, rub } from '@/lib/dates';
-import { KIND_LABEL, STATUS_LABEL, type Kind, type Lesson } from '@/lib/types';
+import { KIND_LABEL, STATUS_LABEL, type Kind, type Lesson, type Status } from '@/lib/types';
+
+// Отдельная форма на каждую кнопку: name/value нажатой кнопки в server action не передаётся
+const STATUS_BUTTONS: { status: Status; label: string }[] = [
+  { status: 'done', label: 'Проведён' },
+  { status: 'cancelled', label: 'Отменить' },
+  { status: 'missed', label: 'Пропуск' },
+  { status: 'planned', label: 'Вернуть' },
+];
 
 type Props = {
   lesson: Lesson & { students?: { name: string; kind: Kind } | null };
@@ -29,14 +37,16 @@ export function LessonItem({ lesson: l, back, showDate }: Props) {
 
       {l.homework && <div className="small pre">📝 {l.homework}</div>}
 
-      <form action={setLessonStatus} className="row">
-        <input type="hidden" name="id" value={l.id} />
-        <input type="hidden" name="back" value={back} />
-        {l.status !== 'done' && <button className="small" name="status" value="done">Проведён</button>}
-        {l.status !== 'cancelled' && <button className="small ghost" name="status" value="cancelled">Отменить</button>}
-        {l.status !== 'missed' && <button className="small ghost" name="status" value="missed">Пропуск</button>}
-        {l.status !== 'planned' && <button className="small ghost" name="status" value="planned">Вернуть</button>}
-      </form>
+      <div className="row">
+        {STATUS_BUTTONS.filter((b) => b.status !== l.status).map((b) => (
+          <form key={b.status} action={setLessonStatus} className="inline">
+            <input type="hidden" name="id" value={l.id} />
+            <input type="hidden" name="status" value={b.status} />
+            <input type="hidden" name="back" value={back} />
+            <button className={b.status === 'done' ? 'small' : 'small ghost'}>{b.label}</button>
+          </form>
+        ))}
+      </div>
 
       <details>
         <summary>Домашка, заметка, перенос · {rub(l.price)}</summary>
