@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase/server';
 import { signOut } from '@/app/actions';
+import { ErrorBanner } from '@/components/ErrorBanner';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const sb = await supabase();
@@ -18,7 +20,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <button className="link">Выйти</button>
         </form>
       </nav>
-      <main>{children}</main>
+      <main>
+        <Suspense>
+          <ErrorBanner />
+        </Suspense>
+        {children}
+      </main>
     </>
   );
 }

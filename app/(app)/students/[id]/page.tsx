@@ -8,11 +8,13 @@ import {
   deleteParent,
   deletePayment,
   endSlot,
+  updateSlot,
   resetShareLink,
   setArchived,
   updateParent,
   updateStudent,
 } from '@/app/actions';
+import { CopyButton } from '@/components/CopyButton';
 import { LessonItem } from '@/components/LessonItem';
 import { ensureLessons } from '@/lib/lessons';
 import { addDays, hhmm, humanDate, rub, today, WEEKDAYS, WEEKDAYS_FULL } from '@/lib/dates';
@@ -73,15 +75,43 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       <h2>Постоянные уроки</h2>
       <section className="card stack">
         {((slots ?? []) as Slot[]).map((slot) => (
-          <form key={slot.id} action={endSlot} className="spread">
-            <input type="hidden" name="id" value={slot.id} />
-            <input type="hidden" name="back" value={back} />
-            <span>
-              Каждый {WEEKDAYS_FULL[slot.weekday - 1]}, {hhmm(slot.start_time)} · {slot.duration_min} мин
-              {slot.starts_on > now && <span className="muted small"> с {humanDate(slot.starts_on)}</span>}
-            </span>
-            <button className="small ghost">Убрать</button>
-          </form>
+          <div key={slot.id} className="stack">
+            <form action={endSlot} className="spread">
+              <input type="hidden" name="id" value={slot.id} />
+              <input type="hidden" name="back" value={back} />
+              <span>
+                Каждый {WEEKDAYS_FULL[slot.weekday - 1]}, {hhmm(slot.start_time)} · {slot.duration_min} мин
+                {slot.starts_on > now && <span className="muted small"> с {humanDate(slot.starts_on)}</span>}
+              </span>
+              <button className="small ghost">Убрать</button>
+            </form>
+            <details>
+              <summary>Изменить день или время</summary>
+              <form action={updateSlot} className="grid">
+                <input type="hidden" name="id" value={slot.id} />
+                <input type="hidden" name="back" value={back} />
+                <label>
+                  День
+                  <select name="weekday" defaultValue={String(slot.weekday)}>
+                    {WEEKDAYS.map((w, i) => (
+                      <option key={w} value={i + 1}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Время
+                  <input type="time" name="start_time" defaultValue={hhmm(slot.start_time)} required />
+                </label>
+                <label>
+                  Минут
+                  <input type="number" name="duration_min" min={5} step={5} defaultValue={slot.duration_min} />
+                </label>
+                <button className="small">Сохранить с сегодняшнего дня</button>
+              </form>
+            </details>
+          </div>
         ))}
         {(slots ?? []).length === 0 && <span className="muted small">Нет постоянных уроков</span>}
         <form action={addSlot} className="grid">
@@ -235,6 +265,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         </span>
         <input readOnly value={shareUrl} />
         <div className="row">
+          <CopyButton text={shareUrl} />
           <a href={shareUrl} target="_blank" rel="noreferrer">
             Открыть
           </a>

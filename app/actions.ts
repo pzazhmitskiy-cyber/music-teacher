@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { redirect, unstable_rethrow } from 'next/navigation';
 import { supabase } from '@/lib/supabase/server';
 import { addDays, isDate, today } from '@/lib/dates';
 import type { Status } from '@/lib/types';
@@ -27,6 +27,20 @@ function back(fd: FormData, fallback: string) {
 async function check(promise: PromiseLike<{ error: { message: string } | null }>) {
   const { error } = await promise;
   if (error) throw new Error(error.message);
+}
+
+/** Ошибку показываем на той же странице вместо «Application error». */
+async function guard(fd: FormData, fn: (fd: FormData) => Promise<void>) {
+  try {
+    await fn(fd);
+  } catch (e) {
+    unstable_rethrow(e);
+    console.error(e);
+    const to = str(fd, 'back');
+    const url = new URL(to && to.startsWith('/') ? to : '/schedule', 'http://local');
+    url.searchParams.set('err', e instanceof Error ? e.message : String(e));
+    redirect(url.pathname + url.search);
+  }
 }
 
 // Вход
@@ -60,7 +74,7 @@ export async function signOut() {
 
 // Ученики
 
-export async function createStudent(fd: FormData) {
+async function createStudent_(fd: FormData) {
   const sb = await supabase();
   const { data, error } = await sb
     .from('students')
@@ -79,7 +93,7 @@ export async function createStudent(fd: FormData) {
   redirect(`/students/${data.id}`);
 }
 
-export async function updateStudent(fd: FormData) {
+async function updateStudent_(fd: FormData) {
   const sb = await supabase();
   const id = str(fd, 'id')!;
   const price = int(fd, 'price');
@@ -110,7 +124,7 @@ export async function updateStudent(fd: FormData) {
   back(fd, `/students/${id}`);
 }
 
-export async function setArchived(fd: FormData) {
+async function setArchived_(fd: FormData) {
   const sb = await supabase();
   const id = str(fd, 'id')!;
   const archived = str(fd, 'archived') === 'true';
@@ -124,7 +138,7 @@ export async function setArchived(fd: FormData) {
   back(fd, `/students/${id}`);
 }
 
-export async function resetShareLink(fd: FormData) {
+async function resetShareLink_(fd: FormData) {
   const sb = await supabase();
   const id = str(fd, 'id')!;
   await check(sb.from('students').update({ share_token: crypto.randomUUID().replaceAll('-', '') }).eq('id', id));
@@ -133,7 +147,7 @@ export async function resetShareLink(fd: FormData) {
 
 // Родители
 
-export async function addParent(fd: FormData) {
+async function addParent_(fd: FormData) {
   const sb = await supabase();
   const studentId = str(fd, 'student_id')!;
   await check(
@@ -147,7 +161,7 @@ export async function addParent(fd: FormData) {
   back(fd, `/students/${studentId}`);
 }
 
-export async function updateParent(fd: FormData) {
+async function updateParent_(fd: FormData) {
   const sb = await supabase();
   await check(
     sb
@@ -158,7 +172,7 @@ export async function updateParent(fd: FormData) {
   back(fd, '/students');
 }
 
-export async function deleteParent(fd: FormData) {
+async function deleteParent_(fd: FormData) {
   const sb = await supabase();
   await check(sb.from('parents').delete().eq('id', str(fd, 'id')!));
   back(fd, '/students');
@@ -166,7 +180,7 @@ export async function deleteParent(fd: FormData) {
 
 // Постоянное расписание
 
-export async function addSlot(fd: FormData) {
+async function addSlot_(fd: FormData) {
   const sb = await supabase();
   const studentId = str(fd, 'student_id')!;
   const startsOn = str(fd, 'starts_on');
@@ -182,7 +196,28 @@ export async function addSlot(fd: FormData) {
   back(fd, `/students/${studentId}`);
 }
 
-export async function endSlot(fd: FormData) {
+async function updateSlot_(fd: FormData) {
+  const sb = await supabase();
+  const id = str(fd, 'id')!;
+  const { data: old, error } = await sb.from('recurring_slots').select('*').eq('id', id).single();
+  if (error) throw new Error(error.message);
+  const t = today();
+  // Старый слот закрываем, новый начинаем с сегодняшнего дня: прошедшие уроки остаются как были
+  await check(sb.from('lessons').delete().eq('slot_id', id).eq('status', 'planned').gte('lesson_date', t));
+  await check(sb.from('recurring_slots').update({ ends_on: addDays(t, -1) }).eq('id', id));
+  await check(
+    sb.from('recurring_slots').insert({
+      student_id: old.student_id,
+      weekday: int(fd, 'weekday', old.weekday),
+      start_time: str(fd, 'start_time') ?? old.start_time,
+      duration_min: int(fd, 'duration_min', old.duration_min),
+      starts_on: old.starts_on > t ? old.starts_on : t,
+    }),
+  );
+  back(fd, `/students/${old.student_id}`);
+}
+
+async function endSlot_(fd: FormData) {
   const sb = await supabase();
   const id = str(fd, 'id')!;
   const t = today();
@@ -194,7 +229,7 @@ export async function endSlot(fd: FormData) {
 
 // Уроки
 
-export async function addLesson(fd: FormData) {
+async function addLesson_(fd: FormData) {
   const sb = await supabase();
   const studentId = str(fd, 'student_id')!;
   const { data: s } = await sb.from('students').select('price, duration_min').eq('id', studentId).single();
@@ -213,7 +248,7 @@ export async function addLesson(fd: FormData) {
 
 const STATUSES: Status[] = ['planned', 'done', 'cancelled', 'missed'];
 
-export async function setLessonStatus(fd: FormData) {
+async function setLessonStatus_(fd: FormData) {
   const sb = await supabase();
   const status = str(fd, 'status') as Status;
   if (!STATUSES.includes(status)) throw new Error('Неизвестный статус');
@@ -221,7 +256,7 @@ export async function setLessonStatus(fd: FormData) {
   back(fd, '/schedule');
 }
 
-export async function updateLesson(fd: FormData) {
+async function updateLesson_(fd: FormData) {
   const sb = await supabase();
   const date = str(fd, 'lesson_date');
   const patch: Record<string, unknown> = {
@@ -236,14 +271,14 @@ export async function updateLesson(fd: FormData) {
   back(fd, '/schedule');
 }
 
-export async function deleteLesson(fd: FormData) {
+async function deleteLesson_(fd: FormData) {
   const sb = await supabase();
   // Удалять можно только разовые; постоянный урок отменяется статусом, иначе он появится снова
   await check(sb.from('lessons').delete().eq('id', str(fd, 'id')!).is('slot_id', null));
   back(fd, '/schedule');
 }
 
-export async function markPastDone(fd: FormData) {
+async function markPastDone_(fd: FormData) {
   const sb = await supabase();
   const from = str(fd, 'from');
   if (!isDate(from)) throw new Error('Нет даты');
@@ -258,7 +293,7 @@ export async function markPastDone(fd: FormData) {
 
 // Оплаты
 
-export async function addPayment(fd: FormData) {
+async function addPayment_(fd: FormData) {
   const sb = await supabase();
   const studentId = str(fd, 'student_id')!;
   const date = str(fd, 'paid_on');
@@ -273,8 +308,62 @@ export async function addPayment(fd: FormData) {
   back(fd, `/students/${studentId}`);
 }
 
-export async function deletePayment(fd: FormData) {
+async function deletePayment_(fd: FormData) {
   const sb = await supabase();
   await check(sb.from('payments').delete().eq('id', str(fd, 'id')!));
   back(fd, '/students');
+}
+
+// Экспортируемые действия: все ошибки идут через guard
+
+export async function createStudent(fd: FormData) {
+  return guard(fd, createStudent_);
+}
+export async function updateStudent(fd: FormData) {
+  return guard(fd, updateStudent_);
+}
+export async function setArchived(fd: FormData) {
+  return guard(fd, setArchived_);
+}
+export async function resetShareLink(fd: FormData) {
+  return guard(fd, resetShareLink_);
+}
+export async function addParent(fd: FormData) {
+  return guard(fd, addParent_);
+}
+export async function updateParent(fd: FormData) {
+  return guard(fd, updateParent_);
+}
+export async function deleteParent(fd: FormData) {
+  return guard(fd, deleteParent_);
+}
+export async function addSlot(fd: FormData) {
+  return guard(fd, addSlot_);
+}
+export async function updateSlot(fd: FormData) {
+  return guard(fd, updateSlot_);
+}
+export async function endSlot(fd: FormData) {
+  return guard(fd, endSlot_);
+}
+export async function addLesson(fd: FormData) {
+  return guard(fd, addLesson_);
+}
+export async function setLessonStatus(fd: FormData) {
+  return guard(fd, setLessonStatus_);
+}
+export async function updateLesson(fd: FormData) {
+  return guard(fd, updateLesson_);
+}
+export async function deleteLesson(fd: FormData) {
+  return guard(fd, deleteLesson_);
+}
+export async function markPastDone(fd: FormData) {
+  return guard(fd, markPastDone_);
+}
+export async function addPayment(fd: FormData) {
+  return guard(fd, addPayment_);
+}
+export async function deletePayment(fd: FormData) {
+  return guard(fd, deletePayment_);
 }

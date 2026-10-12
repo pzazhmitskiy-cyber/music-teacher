@@ -4,12 +4,15 @@ import { rub } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
 import { fullName, KIND_LABEL, type Student } from '@/lib/types';
 
-export default async function Students({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
-  const { archived } = await searchParams;
+export default async function Students({ searchParams }: { searchParams: Promise<{ archived?: string; q?: string }> }) {
+  const { archived, q } = await searchParams;
+  const query = (q ?? '').trim().toLowerCase();
   const showArchived = archived === '1';
   const sb = await supabase();
   const { data } = await sb.from('students').select('*').eq('archived', showArchived).order('last_name').order('name');
-  const students = (data ?? []) as Student[];
+  const students = ((data ?? []) as Student[]).filter(
+    (s) => !query || [fullName(s), s.instrument ?? ''].join(' ').toLowerCase().includes(query),
+  );
 
   return (
     <>
@@ -20,7 +23,13 @@ export default async function Students({ searchParams }: { searchParams: Promise
         </Link>
       </div>
 
-      {students.length === 0 && <p className="muted">Пока никого.</p>}
+      <form className="row" style={{ marginBottom: 10 }}>
+        {showArchived && <input type="hidden" name="archived" value="1" />}
+        <input name="q" defaultValue={q ?? ''} placeholder="Поиск по имени, фамилии или инструменту" style={{ flex: 1 }} />
+        <button className="small">Найти</button>
+      </form>
+
+      {students.length === 0 && <p className="muted">{query ? 'Никого не нашли.' : 'Пока никого.'}</p>}
       {students.map((s) => (
         <Link key={s.id} href={`/students/${s.id}`} className="card spread" style={{ color: 'inherit' }}>
           <span>
@@ -38,6 +47,7 @@ export default async function Students({ searchParams }: { searchParams: Promise
         <>
           <h2>Новый ученик</h2>
           <form action={createStudent} className="card stack">
+            <input type="hidden" name="back" value="/students" />
             <div className="grid">
               <label>
                 Имя

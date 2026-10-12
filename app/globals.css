@@ -85,3 +85,5 @@ th { color: var(--muted); font-weight: 500; font-size: 0.85rem; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .big { font-size: 1.6rem; font-weight: 700; }
 .inline { display: inline; }
+.banner { display: flex; justify-content: space-between; gap: 12px; align-items: center; border-color: var(--danger); color: var(--danger); }
+.banner .muted { display: block; }
