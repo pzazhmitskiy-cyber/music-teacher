@@ -4,9 +4,9 @@ import { LessonItem } from '@/components/LessonItem';
 import { ensureLessons } from '@/lib/lessons';
 import { addDays, humanDate, isDate, today, weekStart } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
-import type { Kind, Lesson } from '@/lib/types';
+import { fullName, type Kind, type Lesson } from '@/lib/types';
 
-type Row = Lesson & { students: { name: string; kind: Kind } | null };
+type Row = Lesson & { students: { name: string; last_name: string | null; kind: Kind } | null };
 
 export default async function Schedule({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
   const { week } = await searchParams;
@@ -20,12 +20,12 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
   const [{ data: lessons }, { data: students }] = await Promise.all([
     sb
       .from('lessons')
-      .select('*, students(name, kind)')
+      .select('*, students(name, last_name, kind)')
       .gte('lesson_date', start)
       .lte('lesson_date', end)
       .order('lesson_date')
       .order('start_time'),
-    sb.from('students').select('id, name').eq('archived', false).order('name'),
+    sb.from('students').select('id, name, last_name').eq('archived', false).order('last_name').order('name'),
   ]);
   const rows = (lessons ?? []) as Row[];
   const hasPastPlanned = rows.some((l) => l.status === 'planned' && l.lesson_date < now);
@@ -82,7 +82,7 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
             <select name="student_id" required>
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {fullName(s)}
                 </option>
               ))}
             </select>

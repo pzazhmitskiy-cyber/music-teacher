@@ -4,15 +4,28 @@ export type Status = 'planned' | 'done' | 'cancelled' | 'missed';
 export type Student = {
   id: string;
   name: string;
+  last_name: string | null;
+  birth_date: string | null;
+  documents: string | null;
+  citizenship: string | null;
+  address: string | null;
+  instrument: string | null;
+  about: string | null;
   kind: Kind;
-  parent_name: string | null;
-  contact: string | null;
   price: number;
   duration_min: number;
   notes: string | null;
   year_plan: string | null;
   share_token: string;
   archived: boolean;
+};
+
+export type Parent = {
+  id: string;
+  student_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
 };
 
 export type Slot = {
@@ -45,6 +58,10 @@ export type Payment = {
   paid_on: string;
   note: string | null;
 };
+
+export function fullName(s: { name: string; last_name?: string | null }): string {
+  return [s.name, s.last_name].filter(Boolean).join(' ');
+}
 
 export const KIND_LABEL: Record<Kind, string> = { private: 'Частный', school: 'Школа' };
 export const STATUS_LABEL: Record<Status, string> = {

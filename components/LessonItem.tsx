@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { deleteLesson, setLessonStatus, updateLesson } from '@/app/actions';
 import { hhmm, humanDate, rub } from '@/lib/dates';
-import { KIND_LABEL, STATUS_LABEL, type Kind, type Lesson, type Status } from '@/lib/types';
+import { fullName, KIND_LABEL, STATUS_LABEL, type Kind, type Lesson, type Status } from '@/lib/types';
 
 // Отдельная форма на каждую кнопку: name/value нажатой кнопки в server action не передаётся
 const STATUS_BUTTONS: { status: Status; label: string }[] = [
@@ -12,7 +12,7 @@ const STATUS_BUTTONS: { status: Status; label: string }[] = [
 ];
 
 type Props = {
-  lesson: Lesson & { students?: { name: string; kind: Kind } | null };
+  lesson: Lesson & { students?: { name: string; last_name: string | null; kind: Kind } | null };
   back: string;
   showDate?: boolean;
 };
@@ -26,7 +26,7 @@ export function LessonItem({ lesson: l, back, showDate }: Props) {
           {showDate && <span className="muted small">{humanDate(l.lesson_date)}</span>}
           {l.students && (
             <Link className="who" href={`/students/${l.student_id}`}>
-              {l.students.name}
+              {fullName(l.students)}
             </Link>
           )}
           {l.students?.kind === 'school' && <span className="badge school">{KIND_LABEL.school}</span>}

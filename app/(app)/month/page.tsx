@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { humanMonth, monthRange, rub, shiftMonth, today } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
-import { BILLABLE, KIND_LABEL, type Kind } from '@/lib/types';
+import { BILLABLE, fullName, KIND_LABEL, type Kind } from '@/lib/types';
 
-type Row = { price: number; status: string; student_id: string; students: { name: string; kind: Kind } | null };
+type Row = { price: number; status: string; student_id: string; students: { name: string; last_name: string | null; kind: Kind } | null };
 
 export default async function Month({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   const { m } = await searchParams;
@@ -12,7 +12,7 @@ export default async function Month({ searchParams }: { searchParams: Promise<{ 
 
   const sb = await supabase();
   const [{ data: lessons }, { data: payments }] = await Promise.all([
-    sb.from('lessons').select('price, status, student_id, students(name, kind)').gte('lesson_date', from).lte('lesson_date', to),
+    sb.from('lessons').select('price, status, student_id, students(name, last_name, kind)').gte('lesson_date', from).lte('lesson_date', to),
     sb.from('payments').select('amount').gte('paid_on', from).lte('paid_on', to),
   ]);
   const rows = ((lessons ?? []) as unknown as Row[]).filter((l) => BILLABLE.includes(l.status as never));
@@ -23,7 +23,7 @@ export default async function Month({ searchParams }: { searchParams: Promise<{ 
 
   const perStudent = new Map<string, { name: string; kind: Kind; count: number; sum: number }>();
   for (const l of rows) {
-    const e = perStudent.get(l.student_id) ?? { name: l.students?.name ?? '?', kind: l.students?.kind ?? 'private', count: 0, sum: 0 };
+    const e = perStudent.get(l.student_id) ?? { name: l.students ? fullName(l.students) : '?', kind: l.students?.kind ?? 'private', count: 0, sum: 0 };
     e.count += 1;
     e.sum += l.price;
     perStudent.set(l.student_id, e);

@@ -4,10 +4,15 @@
 create table students (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users on delete cascade,
-  name text not null,
+  name text not null,                        -- имя
+  last_name text,
+  birth_date date,
+  documents text,                            -- паспорт, свидетельство и т.п.
+  citizenship text,
+  address text,
+  instrument text,
+  about text,                                -- общая информация
   kind text not null default 'private' check (kind in ('private', 'school')),
-  parent_name text,
-  contact text,
   price integer not null default 0,          -- цена урока, ₽
   duration_min integer not null default 45,  -- длительность по умолчанию
   notes text,                                -- личные заметки, родителям не видны
@@ -16,6 +21,18 @@ create table students (
   archived boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Родители (у ученика может быть несколько)
+create table parents (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null default auth.uid() references auth.users on delete cascade,
+  student_id uuid not null references students on delete cascade,
+  name text not null,
+  phone text,
+  email text,
+  created_at timestamptz not null default now()
+);
+create index parents_student on parents (student_id);
 
 -- Постоянные уроки: «каждый вторник в 16:00»
 create table recurring_slots (
@@ -64,11 +81,14 @@ create index payments_student on payments (student_id, paid_on);
 
 -- Каждый видит только свои данные
 alter table students enable row level security;
+alter table parents enable row level security;
 alter table recurring_slots enable row level security;
 alter table lessons enable row level security;
 alter table payments enable row level security;
 
 create policy own on students for all
+  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+create policy own on parents for all
   using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy own on recurring_slots for all
   using (owner_id = auth.uid()) with check (owner_id = auth.uid());
@@ -86,7 +106,7 @@ security definer
 set search_path = public
 as $$
   select json_build_object(
-    'name', s.name,
+    'name', trim(s.name || ' ' || coalesce(s.last_name, '')),
     'year_plan', s.year_plan,
     'slots', coalesce((
       select json_agg(json_build_object('weekday', r.weekday, 'time', to_char(r.start_time, 'HH24:MI'))

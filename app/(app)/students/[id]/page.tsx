@@ -2,19 +2,22 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import {
+  addParent,
   addPayment,
   addSlot,
+  deleteParent,
   deletePayment,
   endSlot,
   resetShareLink,
   setArchived,
+  updateParent,
   updateStudent,
 } from '@/app/actions';
 import { LessonItem } from '@/components/LessonItem';
 import { ensureLessons } from '@/lib/lessons';
 import { addDays, hhmm, humanDate, rub, today, WEEKDAYS, WEEKDAYS_FULL } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
-import { BILLABLE, type Lesson, type Payment, type Slot, type Student } from '@/lib/types';
+import { BILLABLE, fullName, type Lesson, type Parent, type Payment, type Slot, type Student } from '@/lib/types';
 
 export default async function StudentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,11 +29,12 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   if (!student) notFound();
   const s = student as Student;
 
-  const [{ data: slots }, { data: lessons }, { data: payments }, { data: billable }] = await Promise.all([
+  const [{ data: slots }, { data: lessons }, { data: payments }, { data: billable }, { data: parents }] = await Promise.all([
     sb.from('recurring_slots').select('*').eq('student_id', id).or(`ends_on.is.null,ends_on.gte.${now}`).order('weekday').order('start_time'),
     sb.from('lessons').select('*').eq('student_id', id).order('lesson_date', { ascending: false }).order('start_time', { ascending: false }).limit(30),
     sb.from('payments').select('*').eq('student_id', id).order('paid_on', { ascending: false }),
     sb.from('lessons').select('price').eq('student_id', id).in('status', BILLABLE),
+    sb.from('parents').select('*').eq('student_id', id).order('created_at'),
   ]);
 
   const paid = ((payments ?? []) as Payment[]).reduce((sum, p) => sum + p.amount, 0);
@@ -52,7 +56,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
       <p className="small">
         <Link href="/students">← Все ученики</Link>
       </p>
-      <h1>{s.name}{s.archived && <span className="muted"> · в архиве</span>}</h1>
+      <h1>{fullName(s)}{s.archived && <span className="muted"> · в архиве</span>}</h1>
 
       <section className="card">
         <div className="spread">
@@ -127,6 +131,22 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
             <input name="name" defaultValue={s.name} required />
           </label>
           <label>
+            Фамилия
+            <input name="last_name" defaultValue={s.last_name ?? ''} />
+          </label>
+          <label>
+            Дата рождения
+            <input type="date" name="birth_date" defaultValue={s.birth_date ?? ''} />
+          </label>
+          <label>
+            Инструмент
+            <input name="instrument" defaultValue={s.instrument ?? ''} />
+          </label>
+          <label>
+            Гражданство
+            <input name="citizenship" defaultValue={s.citizenship ?? ''} />
+          </label>
+          <label>
             Где учится
             <select name="kind" defaultValue={s.kind}>
               <option value="private">Частный</option>
@@ -141,25 +161,72 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
             Длительность, мин
             <input type="number" name="duration_min" min={5} step={5} defaultValue={s.duration_min} />
           </label>
-          <label>
-            Родитель
-            <input name="parent_name" defaultValue={s.parent_name ?? ''} />
-          </label>
-          <label>
-            Телефон / Telegram
-            <input name="contact" defaultValue={s.contact ?? ''} />
-          </label>
         </div>
+        <label>
+          Домашний адрес
+          <input name="address" defaultValue={s.address ?? ''} />
+        </label>
+        <label>
+          Документы
+          <textarea name="documents" rows={3} placeholder="Паспорт / свидетельство о рождении: серия, номер, кем и когда выдан" defaultValue={s.documents ?? ''} />
+        </label>
+        <label>
+          Общая информация
+          <textarea name="about" defaultValue={s.about ?? ''} />
+        </label>
         <label>
           План на год (виден родителям)
           <textarea name="year_plan" rows={6} defaultValue={s.year_plan ?? ''} />
         </label>
         <label>
-          Заметки для себя
+          Заметки и комментарии (только для вас)
           <textarea name="notes" defaultValue={s.notes ?? ''} />
         </label>
         <button>Сохранить</button>
       </form>
+
+      <h2>Родители</h2>
+      <section className="card stack">
+        {((parents ?? []) as Parent[]).map((p) => (
+          <form key={p.id} action={updateParent} className="grid">
+            <input type="hidden" name="id" value={p.id} />
+            <input type="hidden" name="back" value={back} />
+            <label>
+              Имя
+              <input name="name" defaultValue={p.name} required />
+            </label>
+            <label>
+              Телефон
+              <input type="tel" name="phone" defaultValue={p.phone ?? ''} />
+            </label>
+            <label>
+              Почта
+              <input type="email" name="email" defaultValue={p.email ?? ''} />
+            </label>
+            <div className="row">
+              <button className="small">Сохранить</button>
+              <button className="small danger" formAction={deleteParent}>Удалить</button>
+            </div>
+          </form>
+        ))}
+        <form action={addParent} className="grid">
+          <input type="hidden" name="student_id" value={id} />
+          <input type="hidden" name="back" value={back} />
+          <label>
+            Имя родителя
+            <input name="name" required placeholder="Мама: Ольга Петровна" />
+          </label>
+          <label>
+            Телефон
+            <input type="tel" name="phone" />
+          </label>
+          <label>
+            Почта
+            <input type="email" name="email" />
+          </label>
+          <button className="small secondary">Добавить родителя</button>
+        </form>
+      </section>
 
       <h2>Ссылка для родителей</h2>
       <section className="card stack">

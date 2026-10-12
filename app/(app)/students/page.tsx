@@ -2,13 +2,13 @@ import Link from 'next/link';
 import { createStudent } from '@/app/actions';
 import { rub } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
-import { KIND_LABEL, type Student } from '@/lib/types';
+import { fullName, KIND_LABEL, type Student } from '@/lib/types';
 
 export default async function Students({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
   const { archived } = await searchParams;
   const showArchived = archived === '1';
   const sb = await supabase();
-  const { data } = await sb.from('students').select('*').eq('archived', showArchived).order('name');
+  const { data } = await sb.from('students').select('*').eq('archived', showArchived).order('last_name').order('name');
   const students = (data ?? []) as Student[];
 
   return (
@@ -23,7 +23,10 @@ export default async function Students({ searchParams }: { searchParams: Promise
       {students.length === 0 && <p className="muted">Пока никого.</p>}
       {students.map((s) => (
         <Link key={s.id} href={`/students/${s.id}`} className="card spread" style={{ color: 'inherit' }}>
-          <strong>{s.name}</strong>
+          <span>
+            <strong>{fullName(s)}</strong>
+            {s.instrument && <span className="muted small"> · {s.instrument}</span>}
+          </span>
           <span className="row small muted">
             <span className={`badge ${s.kind === 'school' ? 'school' : 'planned'}`}>{KIND_LABEL[s.kind]}</span>
             {rub(s.price)} · {s.duration_min} мин
@@ -35,11 +38,19 @@ export default async function Students({ searchParams }: { searchParams: Promise
         <>
           <h2>Новый ученик</h2>
           <form action={createStudent} className="card stack">
-            <label>
-              Имя
-              <input name="name" required />
-            </label>
             <div className="grid">
+              <label>
+                Имя
+                <input name="name" required />
+              </label>
+              <label>
+                Фамилия
+                <input name="last_name" />
+              </label>
+              <label>
+                Инструмент
+                <input name="instrument" placeholder="фортепиано" />
+              </label>
               <label>
                 Где учится
                 <select name="kind" defaultValue="private">

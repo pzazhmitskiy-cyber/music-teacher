@@ -66,6 +66,8 @@ export async function createStudent(fd: FormData) {
     .from('students')
     .insert({
       name: str(fd, 'name') ?? 'Без имени',
+      last_name: str(fd, 'last_name'),
+      instrument: str(fd, 'instrument'),
       kind: str(fd, 'kind') === 'school' ? 'school' : 'private',
       price: int(fd, 'price'),
       duration_min: int(fd, 'duration_min', 45),
@@ -87,8 +89,13 @@ export async function updateStudent(fd: FormData) {
       .update({
         name: str(fd, 'name') ?? 'Без имени',
         kind: str(fd, 'kind') === 'school' ? 'school' : 'private',
-        parent_name: str(fd, 'parent_name'),
-        contact: str(fd, 'contact'),
+        last_name: str(fd, 'last_name'),
+        birth_date: isDate(str(fd, 'birth_date')) ? str(fd, 'birth_date') : null,
+        documents: str(fd, 'documents'),
+        citizenship: str(fd, 'citizenship'),
+        address: str(fd, 'address'),
+        instrument: str(fd, 'instrument'),
+        about: str(fd, 'about'),
         price,
         duration_min: int(fd, 'duration_min', 45),
         notes: str(fd, 'notes'),
@@ -122,6 +129,39 @@ export async function resetShareLink(fd: FormData) {
   const id = str(fd, 'id')!;
   await check(sb.from('students').update({ share_token: crypto.randomUUID().replaceAll('-', '') }).eq('id', id));
   back(fd, `/students/${id}`);
+}
+
+// Родители
+
+export async function addParent(fd: FormData) {
+  const sb = await supabase();
+  const studentId = str(fd, 'student_id')!;
+  await check(
+    sb.from('parents').insert({
+      student_id: studentId,
+      name: str(fd, 'name') ?? 'Родитель',
+      phone: str(fd, 'phone'),
+      email: str(fd, 'email'),
+    }),
+  );
+  back(fd, `/students/${studentId}`);
+}
+
+export async function updateParent(fd: FormData) {
+  const sb = await supabase();
+  await check(
+    sb
+      .from('parents')
+      .update({ name: str(fd, 'name') ?? 'Родитель', phone: str(fd, 'phone'), email: str(fd, 'email') })
+      .eq('id', str(fd, 'id')!),
+  );
+  back(fd, '/students');
+}
+
+export async function deleteParent(fd: FormData) {
+  const sb = await supabase();
+  await check(sb.from('parents').delete().eq('id', str(fd, 'id')!));
+  back(fd, '/students');
 }
 
 // Постоянное расписание
