@@ -65,3 +65,15 @@ export function hhmm(t: string): string {
 export function rub(n: number): string {
   return new Intl.NumberFormat('ru-RU').format(n) + ' ₽';
 }
+
+/** Минуты с начала суток в часовом поясе учителя */
+export function nowMinutes(): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return get('hour') * 60 + get('minute');
+}
+
+export function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}

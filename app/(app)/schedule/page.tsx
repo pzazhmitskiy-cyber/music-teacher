@@ -1,19 +1,24 @@
 import Link from 'next/link';
 import { addLesson, markPastDone } from '@/app/actions';
 import { LessonItem } from '@/components/LessonItem';
+import { WeekGrid } from '@/components/WeekGrid';
 import { ensureLessons } from '@/lib/lessons';
-import { addDays, humanDate, isDate, today, weekStart } from '@/lib/dates';
+import { addDays, humanDate, isDate, rub, today, weekStart } from '@/lib/dates';
 import { supabase } from '@/lib/supabase/server';
 import { fullName, type Kind, type Lesson } from '@/lib/types';
 
 type Row = Lesson & { students: { name: string; last_name: string | null; kind: Kind } | null };
 
-export default async function Schedule({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
-  const { week } = await searchParams;
+type Search = { week?: string; view?: string; lesson?: string };
+
+export default async function Schedule({ searchParams }: { searchParams: Promise<Search> }) {
+  const { week, view: viewParam, lesson } = await searchParams;
+  const view = viewParam === 'list' ? 'list' : 'grid';
   const now = today();
   const start = weekStart(isDate(week) ? week : now);
   const end = addDays(start, 6);
-  const back = `/schedule?week=${start}`;
+  const href = (w: string, v = view, l?: string) => `/schedule?week=${w}&view=${v}${l ? `&lesson=${l}` : ''}`;
+  const back = href(start, view, lesson);
 
   const sb = await supabase();
   await ensureLessons(sb, start, end);
@@ -31,21 +36,39 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
   const hasPastPlanned = rows.some((l) => l.status === 'planned' && l.lesson_date < now);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const active = rows.filter((l) => l.status !== 'cancelled');
+  const hours = active.reduce((sum, l) => sum + l.duration_min, 0) / 60;
+  const income = active.reduce((sum, l) => sum + l.price, 0);
+  const selected = rows.find((l) => l.id === lesson);
 
   return (
     <>
       <div className="spread">
-        <Link href={`/schedule?week=${addDays(start, -7)}`}>← Пред.</Link>
+        <Link href={href(addDays(start, -7))}>← Пред.</Link>
         <strong>
           {humanDate(start)} — {humanDate(end)}
         </strong>
-        <Link href={`/schedule?week=${addDays(start, 7)}`}>След. →</Link>
+        <Link href={href(addDays(start, 7))}>След. →</Link>
       </div>
-      {start !== weekStart(now) && (
-        <p className="small">
-          <Link href="/schedule">К текущей неделе</Link>
-        </p>
-      )}
+      <div className="spread" style={{ marginTop: 8 }}>
+        <span className="small muted">
+          {active.length} ур. · {hours.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ч · {rub(income)}
+          {start !== weekStart(now) && (
+            <>
+              {' · '}
+              <Link href={href(weekStart(now))}>сегодня</Link>
+            </>
+          )}
+        </span>
+        <span className="tabs">
+          <Link href={href(start, 'grid')} className={view === 'grid' ? 'active' : ''}>
+            Неделя
+          </Link>
+          <Link href={href(start, 'list')} className={view === 'list' ? 'active' : ''}>
+            Список
+          </Link>
+        </span>
+      </div>
 
       {hasPastPlanned && (
         <form action={markPastDone} className="card spread">
@@ -57,7 +80,32 @@ export default async function Schedule({ searchParams }: { searchParams: Promise
         </form>
       )}
 
-      {days.map((d) => {
+      {view === 'grid' && (
+        <>
+          {selected && (
+            <section className="card">
+              <div className="spread">
+                <strong className="day-title">{humanDate(selected.lesson_date)}</strong>
+                <Link href={href(start)} scroll={false} className="small">
+                  Закрыть
+                </Link>
+              </div>
+              <LessonItem lesson={selected} back={back} />
+            </section>
+          )}
+          <WeekGrid days={days} rows={rows} now={now} selected={lesson} lessonHref={(id) => href(start, 'grid', id)} />
+          <div className="legend">
+            <span><i style={{ background: 'var(--accent)' }} />частный</span>
+            <span><i style={{ background: '#2e7d9a' }} />школа</span>
+            <span><i style={{ background: 'var(--done)' }} />проведён</span>
+            <span><i style={{ background: 'var(--missed)' }} />пропуск</span>
+            <span><i style={{ border: '1px dashed var(--cancel)' }} />отменён</span>
+          </div>
+          {!selected && rows.length > 0 && <p className="small muted">Нажмите на урок, чтобы отметить, перенести или записать домашку.</p>}
+        </>
+      )}
+
+      {view === 'list' && days.map((d) => {
         const dayLessons = rows.filter((l) => l.lesson_date === d);
         return (
           <section key={d} className="card">

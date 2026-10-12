@@ -87,3 +87,40 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .inline { display: inline; }
 .banner { display: flex; justify-content: space-between; gap: 12px; align-items: center; border-color: var(--danger); color: var(--danger); }
 .banner .muted { display: block; }
+
+/* Неделя сеткой */
+main:has(.week-scroll) { max-width: 1200px; }
+.week-scroll { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin: 10px 0; }
+.week-grid { display: grid; grid-template-columns: 52px repeat(7, minmax(96px, 1fr)); min-width: 740px; }
+.week-head { display: flex; flex-direction: column; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.week-day { font-size: 1.4rem; font-weight: 600; line-height: 1.3; }
+.week-head.today .week-day { background: var(--accent); color: #fff; border-radius: 99px; padding: 0 8px; }
+.week-hours { position: relative; }
+.week-hours span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 0.75rem; color: var(--muted); }
+.week-hours span:first-child { transform: none; }
+.week-col {
+  position: relative; border-left: 1px solid var(--line);
+  background-image: linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+}
+.week-lesson {
+  position: absolute; left: 3px; right: 3px; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0; padding: 3px 6px; border-radius: 6px;
+  font-size: 0.78rem; line-height: 1.25; color: #fff; background: var(--accent);
+}
+.week-lesson strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-lesson.school { background: #2e7d9a; }
+.week-lesson.done { background: var(--done); }
+.week-lesson.missed { background: var(--missed); }
+.week-lesson.cancelled { background: transparent; color: var(--cancel); border: 1px dashed var(--cancel); text-decoration: line-through; }
+.week-lesson.selected { outline: 2px solid var(--text); outline-offset: 1px; z-index: 1; }
+.week-now { position: absolute; left: 0; right: 0; height: 2px; background: var(--danger); z-index: 2; }
+.week-now::before { content: ''; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+@media (max-width: 600px) {
+  .week-grid { grid-template-columns: 40px repeat(7, minmax(64px, 1fr)); min-width: 488px; }
+  .week-lesson { padding: 2px 4px; font-size: 0.72rem; }
+}
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tabs a { padding: 4px 12px; color: var(--muted); font-size: 0.9rem; }
+.tabs a.active { background: var(--accent); color: #fff; }
