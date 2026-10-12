@@ -76,7 +76,8 @@ button.link { background: none; color: var(--muted); padding: 0; font-weight: 50
 .time { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 48px; }
 details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
 details[open] summary { margin-bottom: 8px; }
-.day-title { font-weight: 700; text-transform: capitalize; }
+.day-title { font-weight: 700; }
+.day-title::first-letter { text-transform: uppercase; }
 .day-title.today { color: var(--accent); }
 table { width: 100%; border-collapse: collapse; }
 td, th { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); }
